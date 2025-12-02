@@ -1,24 +1,72 @@
+﻿using Inventory.Api.Common;
+using Inventory.Api.Data;
+using Inventory.Api.Services;
+using InventoryManagement6th.Service;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Register DbContext
+builder.Services.AddDbContext<AppDbContext>(opt =>
+    opt.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+// For Bulk Upload
+builder.Services.AddScoped<ExcelTemplateService>();
+builder.Services.AddScoped<ExcelUploadService>();
+
+// Register your services
+builder.Services.AddScoped<IAPInvoiceService, APInvoiceService>();
+
+builder.Services.AddControllers()
+    .AddJsonOptions(o => { o.JsonSerializerOptions.PropertyNamingPolicy = null; });
+
+// CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngular",
+        policy => policy
+            .WithOrigins(
+                "http://localhost:4200",
+                "https://localhost:4200"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials()
+        );
+});
+
+// Custom validation response
+builder.Services.Configure<ApiBehaviorOptions>(o =>
+{
+    o.SuppressModelStateInvalidFilter = true;
+});
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// Global exception handler
+app.UseExceptionHandler(errApp =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    errApp.Run(async ctx =>
+    {
+        var ex = ctx.Features.Get<IExceptionHandlerFeature>()?.Error;
+        ctx.Response.StatusCode = 500;
+        ctx.Response.ContentType = "application/json";
+        await ctx.Response.WriteAsJsonAsync(
+            ApiResponse.Fail<object>(500, ex?.Message ?? "Unexpected error")
+        );
+    });
+});
 
-app.UseHttpsRedirection();
+// Use CORS early
+app.UseCors("AllowAngular");
 
-app.UseAuthorization();
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.MapControllers();
 
