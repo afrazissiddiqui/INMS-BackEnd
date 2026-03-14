@@ -21,3 +21,4 @@ namespace Inventory.Api.Domain
     }
 }
 
+s

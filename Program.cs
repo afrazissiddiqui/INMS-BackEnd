@@ -10,7 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Register DbContext
 builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    opt.UseSqlServer(builder.Configuration.GetConnectionString("sqlConnection")));
 
 // For Bulk Upload
 builder.Services.AddScoped<ExcelTemplateService>();

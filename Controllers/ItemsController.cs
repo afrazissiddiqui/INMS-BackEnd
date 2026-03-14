@@ -119,26 +119,27 @@ int pageNumber = 1, int pageSize = 25) // default 25 per page
                 ItemName = request.ItemName,
                 CategoryId = request.CategoryId,
                 UnitOfMeasureId = uom.Id,
-                AllowNegativeInventory = request.AllowNegativeInventory
+                AllowNegativeInventory = request.AllowNegativeInventory,
+                
             };
 
             _db.Items.Add(item);
             await _db.SaveChangesAsync();
 
-            //// 🔹 if StockQuantity provided, create StockTransaction
-            //if (request.StockQuantity != 0)
-            //{
-            //    _db.StockTransactions.Add(new StockTransaction
-            //    {
-            //        InvoiceType = InvoiceTypeEnum.AP, // initial load considered stock-in
-            //        InvoiceId = 0,
-            //        InvoiceLineId = 0,
-            //        ItemId = item.Id,
-            //        Qty = request.StockQuantity
-            //    });
+            // 🔹 if StockQuantity provided, create StockTransaction
+            if (request.StockQuantity != 0)
+            {
+                _db.StockTransactions.Add(new StockTransaction
+                {
+                    InvoiceType = InvoiceTypeEnum.AP, // initial load considered stock-in
+                    InvoiceId = 0,
+                    InvoiceLineId = 0,
+                    ItemId = item.Id,
+                    Qty = request.StockQuantity
+                });
 
-            //    await _db.SaveChangesAsync();
-            //}
+                await _db.SaveChangesAsync();
+            }
 
             return CreatedAtAction(nameof(GetItemById), new { id = item.Id }, new ItemResponseDto
             {
@@ -146,7 +147,7 @@ int pageNumber = 1, int pageSize = 25) // default 25 per page
                 ItemName = item.ItemName,
                 CategoryName = (await _db.Categories.FindAsync(item.CategoryId))?.Name ?? "",
                 UnitAbbreviation = uom.Abbreviation,
-                //StockQuantity = request.StockQuantity,
+                StockQuantity = request.StockQuantity,
                 AllowNegativeInventory = item.AllowNegativeInventory
             });
         }
