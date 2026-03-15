@@ -7,8 +7,11 @@
         public string UnitAbbreviation { get; set; } = "";
         public decimal StockQuantity { get; set; } = 0;
 
-        // 🔹 Add Price
-        public decimal Price { get; set; }
+        // 🔹 Add Buy Price
+        public decimal BuyPrice { get; set; }
+
+        // 🔹 Add Sale Price
+        public decimal SalePrice { get; set; }
 
         public bool AllowNegativeInventory { get; set; } = false;
     }

@@ -53,7 +53,8 @@ namespace Inventory.Api.Controllers
                 CategoryName = item.Category?.Name ?? "",
                 UnitAbbreviation = item.UnitOfMeasure?.Abbreviation ?? "",
                 StockQuantity = stockDict.ContainsKey(item.Id) ? stockDict[item.Id] : 0,
-                Price = item.Price,
+                BuyPrice = item.BuyPrice,
+                SalePrice = item.SalePrice,
                 AllowNegativeInventory = item.AllowNegativeInventory
             }).ToList();
 
@@ -90,7 +91,8 @@ namespace Inventory.Api.Controllers
                 CategoryName = item.Category?.Name ?? "",
                 UnitAbbreviation = item.UnitOfMeasure?.Abbreviation ?? "",
                 StockQuantity = stock,
-                Price = item.Price,
+                BuyPrice = item.BuyPrice,
+                SalePrice = item.SalePrice,
                 AllowNegativeInventory = item.AllowNegativeInventory
             };
 
@@ -115,7 +117,8 @@ namespace Inventory.Api.Controllers
                 ItemName = request.ItemName,
                 CategoryId = request.CategoryId,
                 UnitOfMeasureId = uom.Id,
-                Price = request.Price,
+                BuyPrice = request.BuyPrice,
+                SalePrice = request.SalePrice,
                 AllowNegativeInventory = request.AllowNegativeInventory
             };
 
@@ -143,7 +146,8 @@ namespace Inventory.Api.Controllers
                 CategoryName = (await _db.Categories.FindAsync(item.CategoryId))?.Name ?? "",
                 UnitAbbreviation = uom.Abbreviation,
                 StockQuantity = request.StockQuantity,
-                Price = item.Price,
+                BuyPrice = item.BuyPrice,
+                SalePrice = item.SalePrice,
                 AllowNegativeInventory = item.AllowNegativeInventory
             });
         }
@@ -185,7 +189,8 @@ namespace Inventory.Api.Controllers
             item.ItemName = request.ItemName;
             item.CategoryId = request.CategoryId;
             item.UnitOfMeasureId = uom.Id;
-            item.Price = request.Price;
+            item.BuyPrice = request.BuyPrice;
+            item.SalePrice = request.SalePrice;
             item.AllowNegativeInventory = request.AllowNegativeInventory;
 
             await _db.SaveChangesAsync();

@@ -26,10 +26,15 @@ namespace Inventory.Api.Domain
         [ForeignKey(nameof(UnitOfMeasureId))]
         public UnitOfMeasure? UnitOfMeasure { get; set; }
 
-        // 🔹 Add Price
+        // 🔹 Add Buying Price
         [Required]
         [Column(TypeName = "decimal(18,2)")]
-        public decimal Price { get; set; }
+        public decimal BuyPrice { get; set; }
+
+        // 🔹 Add Sale Price
+        [Required]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal SalePrice { get; set; }
         public bool AllowNegativeInventory { get; set; }
     }
 }
