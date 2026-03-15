@@ -18,59 +18,55 @@ namespace Inventory.Api.Controllers
             _db = db;
         }
 
-    // ✅ GET: api/items
-    [HttpGet]
-    public async Task<ActionResult<IEnumerable<ItemResponseDto>>> GetItems(
-int pageNumber = 1, int pageSize = 25) // default 25 per page
-    {
-        if (pageNumber <= 0 || pageSize <= 0)
-            return BadRequest("PageNumber and PageSize must be greater than 0.");
-
-        var query = _db.Items
-            .Include(i => i.Category)
-            .Include(i => i.UnitOfMeasure)
-            .AsNoTracking();
-
-        var totalCount = await query.CountAsync();
-
-        // grab only the current page of items
-        var items = await query
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
-
-        // ✅ batch query: get stock totals for all items on this page in one go
-        var itemIds = items.Select(i => i.Id).ToList();
-
-        var stockDict = await _db.StockTransactions
-            .Where(st => itemIds.Contains(st.ItemId))
-            .GroupBy(st => st.ItemId)
-            .Select(g => new { ItemId = g.Key, Total = g.Sum(x => x.Qty) })
-            .ToDictionaryAsync(x => x.ItemId, x => x.Total);
-
-        // map results
-        var result = items.Select(item => new ItemResponseDto
+        // GET: api/items
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<ItemResponseDto>>> GetItems(
+            int pageNumber = 1, int pageSize = 25)
         {
-            Id = item.Id,
-            ItemName = item.ItemName,
-            CategoryName = item.Category?.Name ?? "",
-            UnitAbbreviation = item.UnitOfMeasure?.Abbreviation ?? "",
-            StockQuantity = stockDict.ContainsKey(item.Id) ? stockDict[item.Id] : 0,
-            AllowNegativeInventory = item.AllowNegativeInventory
-        }).ToList();
+            if (pageNumber <= 0 || pageSize <= 0)
+                return BadRequest("PageNumber and PageSize must be greater than 0.");
 
-        return Ok(new
-        {
-            TotalCount = totalCount,
-            PageNumber = pageNumber,
-            PageSize = pageSize,
-            Data = result
-        });
-    }
+            var query = _db.Items
+                .Include(i => i.Category)
+                .Include(i => i.UnitOfMeasure)
+                .AsNoTracking();
 
+            var totalCount = await query.CountAsync();
 
+            var items = await query
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
 
-        // ✅ GET: api/items/{id}
+            var itemIds = items.Select(i => i.Id).ToList();
+
+            var stockDict = await _db.StockTransactions
+                .Where(st => itemIds.Contains(st.ItemId))
+                .GroupBy(st => st.ItemId)
+                .Select(g => new { ItemId = g.Key, Total = g.Sum(x => x.Qty) })
+                .ToDictionaryAsync(x => x.ItemId, x => x.Total);
+
+            var result = items.Select(item => new ItemResponseDto
+            {
+                Id = item.Id,
+                ItemName = item.ItemName,
+                CategoryName = item.Category?.Name ?? "",
+                UnitAbbreviation = item.UnitOfMeasure?.Abbreviation ?? "",
+                StockQuantity = stockDict.ContainsKey(item.Id) ? stockDict[item.Id] : 0,
+                Price = item.Price,
+                AllowNegativeInventory = item.AllowNegativeInventory
+            }).ToList();
+
+            return Ok(new
+            {
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                Data = result
+            });
+        }
+
+        // GET: api/items/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<ItemResponseDto>> GetItemById(int id)
         {
@@ -94,12 +90,12 @@ int pageNumber = 1, int pageSize = 25) // default 25 per page
                 CategoryName = item.Category?.Name ?? "",
                 UnitAbbreviation = item.UnitOfMeasure?.Abbreviation ?? "",
                 StockQuantity = stock,
+                Price = item.Price,
                 AllowNegativeInventory = item.AllowNegativeInventory
             };
 
             return Ok(dto);
         }
-
 
         // POST: api/items
         [HttpPost]
@@ -119,19 +115,18 @@ int pageNumber = 1, int pageSize = 25) // default 25 per page
                 ItemName = request.ItemName,
                 CategoryId = request.CategoryId,
                 UnitOfMeasureId = uom.Id,
-                AllowNegativeInventory = request.AllowNegativeInventory,
-                
+                Price = request.Price,
+                AllowNegativeInventory = request.AllowNegativeInventory
             };
 
             _db.Items.Add(item);
             await _db.SaveChangesAsync();
 
-            // 🔹 if StockQuantity provided, create StockTransaction
             if (request.StockQuantity != 0)
             {
                 _db.StockTransactions.Add(new StockTransaction
                 {
-                    InvoiceType = InvoiceTypeEnum.AP, // initial load considered stock-in
+                    InvoiceType = InvoiceTypeEnum.AP,
                     InvoiceId = 0,
                     InvoiceLineId = 0,
                     ItemId = item.Id,
@@ -148,9 +143,11 @@ int pageNumber = 1, int pageSize = 25) // default 25 per page
                 CategoryName = (await _db.Categories.FindAsync(item.CategoryId))?.Name ?? "",
                 UnitAbbreviation = uom.Abbreviation,
                 StockQuantity = request.StockQuantity,
+                Price = item.Price,
                 AllowNegativeInventory = item.AllowNegativeInventory
             });
         }
+
         [HttpGet("download-template")]
         public IActionResult DownloadTemplate([FromServices] ExcelTemplateService excelService)
         {
@@ -159,7 +156,6 @@ int pageNumber = 1, int pageSize = 25) // default 25 per page
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 "BulkUploadTemplate.xlsx");
         }
-
 
         [HttpPost("upload-excel")]
         public async Task<IActionResult> UploadExcel(IFormFile file, [FromServices] ExcelUploadService excelService)
@@ -177,7 +173,8 @@ int pageNumber = 1, int pageSize = 25) // default 25 per page
         public async Task<IActionResult> UpdateItem(int id, ItemRequestDto request)
         {
             var item = await _db.Items.FindAsync(id);
-            if (item == null) return NotFound();
+            if (item == null)
+                return NotFound();
 
             var uom = await _db.UnitsOfMeasure
                 .FirstOrDefaultAsync(u => u.Abbreviation == request.UnitAbbreviation);
@@ -188,22 +185,23 @@ int pageNumber = 1, int pageSize = 25) // default 25 per page
             item.ItemName = request.ItemName;
             item.CategoryId = request.CategoryId;
             item.UnitOfMeasureId = uom.Id;
+            item.Price = request.Price;
             item.AllowNegativeInventory = request.AllowNegativeInventory;
 
             await _db.SaveChangesAsync();
+
             return NoContent();
         }
 
-        // DELETE: api/items/{id}
         // DELETE: api/items/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteItem(int id)
         {
             var item = await _db.Items.FindAsync(id);
+
             if (item == null)
                 return NotFound(new { msg = $"Item with ID {id} not found." });
 
-            // ✅ Check if item is being used in StockTransactions or APInvoiceLines
             bool inUse = await _db.StockTransactions.AnyAsync(s => s.ItemId == id)
                       || await _db.APInvoiceLines.AnyAsync(l => l.ItemId == id);
 
@@ -220,6 +218,5 @@ int pageNumber = 1, int pageSize = 25) // default 25 per page
 
             return NoContent();
         }
-
     }
 }

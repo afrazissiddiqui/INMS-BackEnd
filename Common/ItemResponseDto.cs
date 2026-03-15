@@ -7,6 +7,10 @@
         public string CategoryName { get; set; } = "";
         public string UnitAbbreviation { get; set; } = "";
         public decimal StockQuantity { get; set; }
+
+        // 🔹 Add Price
+        public decimal Price { get; set; }
+
         public bool AllowNegativeInventory { get; set; }
     }
 }

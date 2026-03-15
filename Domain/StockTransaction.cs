@@ -20,5 +20,3 @@ namespace Inventory.Api.Domain
         public decimal Qty { get; set; }
     }
 }
-
-s
