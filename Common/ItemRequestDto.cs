@@ -9,10 +9,9 @@
 
         // 🔹 Add Buy Price
         public decimal BuyPrice { get; set; }
-
-        // 🔹 Add Sale Price
+        
+        // 🔹 Add Buy Price
         public decimal SalePrice { get; set; }
-
         public bool AllowNegativeInventory { get; set; } = false;
     }
 }

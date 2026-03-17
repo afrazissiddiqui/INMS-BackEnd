@@ -27,9 +27,10 @@ namespace Inventory.Api.Controllers
                 return BadRequest("PageNumber and PageSize must be greater than 0.");
 
             var query = _db.Items
-                .Include(i => i.Category)
-                .Include(i => i.UnitOfMeasure)
-                .AsNoTracking();
+      .Where(i => i.IsActive && !i.IsDeleted)
+      .Include(i => i.Category)
+      .Include(i => i.UnitOfMeasure)
+      .AsNoTracking();
 
             var totalCount = await query.CountAsync();
 
@@ -72,6 +73,7 @@ namespace Inventory.Api.Controllers
         public async Task<ActionResult<ItemResponseDto>> GetItemById(int id)
         {
             var item = await _db.Items
+                .Where(i => i.IsActive && !i.IsDeleted)
                 .Include(i => i.Category)
                 .Include(i => i.UnitOfMeasure)
                 .AsNoTracking()
@@ -205,23 +207,29 @@ namespace Inventory.Api.Controllers
             var item = await _db.Items.FindAsync(id);
 
             if (item == null)
-                return NotFound(new { msg = $"Item with ID {id} not found." });
+                return NotFound(new { msg = "Item not found" });
 
-            bool inUse = await _db.StockTransactions.AnyAsync(s => s.ItemId == id)
-                      || await _db.APInvoiceLines.AnyAsync(l => l.ItemId == id);
+            item.IsActive = false;
+            item.UpdatedAt = DateTime.UtcNow;
 
-            if (inUse)
-            {
-                return BadRequest(new
-                {
-                    msg = "Item cannot be deleted because it is referenced in invoices or stock transactions."
-                });
-            }
-
-            _db.Items.Remove(item);
             await _db.SaveChangesAsync();
 
-            return NoContent();
+            return Ok(new { msg = "Item deactivated successfully" });
+        }
+        [HttpPut("activate/{id}")]
+        public async Task<IActionResult> ActivateItem(int id)
+        {
+            var item = await _db.Items.FindAsync(id);
+
+            if (item == null)
+                return NotFound(new { msg = "Item not found" });
+
+            item.IsActive = true;
+            item.UpdatedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new { msg = "Item activated successfully" });
         }
     }
 }
